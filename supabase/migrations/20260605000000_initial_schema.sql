@@ -1,7 +1,7 @@
 -- Products
 create table if not exists public.products (
   id          uuid primary key default gen_random_uuid(),
-  name        text not null,
+  name        text not null unique,
   price       numeric(15, 2) not null check (price >= 0),
   stock       integer not null default 0 check (stock >= 0),
   category    text,
