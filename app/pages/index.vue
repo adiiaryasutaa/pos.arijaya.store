@@ -1,0 +1,69 @@
+<script setup lang="ts">
+import {
+  PhShoppingCart,
+  PhPackage,
+  PhClipboardText,
+  PhSignOut,
+} from '@phosphor-icons/vue'
+
+definePageMeta({ middleware: 'auth' })
+
+const supabase = useSupabaseClient()
+
+async function logout() {
+  await supabase.auth.signOut()
+  await navigateTo('/login')
+}
+
+const menus = [
+  {
+    label: 'Kasir',
+    description: 'Proses penjualan dan pembayaran',
+    icon: PhShoppingCart,
+    to: '/cashier',
+  },
+  {
+    label: 'Inventaris',
+    description: 'Kelola stok dan daftar produk',
+    icon: PhPackage,
+    to: '/inventory',
+  },
+  {
+    label: 'Riwayat Transaksi',
+    description: 'Lihat dan cetak bukti transaksi',
+    icon: PhClipboardText,
+    to: '/transactions',
+  },
+]
+</script>
+
+<template>
+  <div class="min-h-screen bg-background">
+    <header class="border-b px-6 py-4 flex items-center justify-between">
+      <h1 class="text-3xl font-bold">Toko Arijaya</h1>
+      <Button variant="outline" class="h-12 text-lg gap-2" @click="logout">
+        <PhSignOut data-icon="inline-start" />
+        Keluar
+      </Button>
+    </header>
+
+    <main class="p-6 max-w-2xl mx-auto">
+      <p class="text-xl text-muted-foreground mb-6">Selamat datang. Pilih menu di bawah ini:</p>
+      <div class="flex flex-col gap-4">
+        <NuxtLink v-for="menu in menus" :key="menu.to" :to="menu.to">
+          <Card class="cursor-pointer hover:bg-accent transition-colors">
+            <CardHeader>
+              <div class="flex items-center gap-4">
+                <component :is="menu.icon" class="size-10 text-primary shrink-0" />
+                <div>
+                  <CardTitle class="text-2xl">{{ menu.label }}</CardTitle>
+                  <CardDescription class="text-lg mt-1">{{ menu.description }}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+        </NuxtLink>
+      </div>
+    </main>
+  </div>
+</template>
