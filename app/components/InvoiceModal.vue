@@ -27,7 +27,7 @@ function shortId(id: string) {
 
 const paymentLabel = computed(() => {
   if (!props.transaction) return ''
-  return props.transaction.payment_method === 'cash' ? 'Tunai' : 'Transfer Bank'
+  return props.transaction.payment_method === 'cash' ? 'Tunai' : 'Transfer'
 })
 
 const canShare = typeof navigator !== 'undefined' && !!navigator.share
@@ -76,7 +76,7 @@ async function share() {
         <div class="flex flex-col gap-2">
           <div
             v-for="item in transaction.transaction_items"
-            :key="item.id"
+            :key="item.id ?? item.product_name"
             class="flex justify-between items-start gap-2"
           >
             <div class="flex-1">

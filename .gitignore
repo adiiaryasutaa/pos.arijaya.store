@@ -23,6 +23,9 @@ logs
 .env.*
 !.env.example
 
+# MCP config (contains secrets via env var refs — gitignore to prevent accidental hardcoding)
+.mcp.json
+
 # AI agent local context
 .agents/
 .claude/projects/

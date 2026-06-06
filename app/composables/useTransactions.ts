@@ -48,16 +48,7 @@ export function useTransactions() {
     const sb = supabase as any
     const total = cartItems.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
 
-    const { data: tx, error: txError } = await sb
-      .from('transactions')
-      .insert({ payment_method: paymentMethod, total, user_id: userId })
-      .select()
-      .single()
-
-    if (txError) throw txError
-
     const items = cartItems.map(i => ({
-      transaction_id: tx.id,
       product_id: i.product.id,
       product_name: i.product.name,
       product_price: i.product.price,
@@ -65,17 +56,15 @@ export function useTransactions() {
       subtotal: i.product.price * i.quantity,
     }))
 
-    const { error: itemsError } = await sb.from('transaction_items').insert(items)
-    if (itemsError) throw itemsError
+    const { data, error } = await sb.rpc('create_transaction', {
+      p_payment_method: paymentMethod,
+      p_total: total,
+      p_user_id: userId,
+      p_items: items,
+    })
 
-    for (const item of cartItems) {
-      await sb
-        .from('products')
-        .update({ stock: item.product.stock - item.quantity })
-        .eq('id', item.product.id)
-    }
-
-    return { ...tx, transaction_items: items } as Transaction
+    if (error) throw error
+    return data as Transaction
   }
 
   return { fetchTransactions, createTransaction }

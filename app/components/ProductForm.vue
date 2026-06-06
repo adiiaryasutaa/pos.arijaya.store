@@ -18,6 +18,14 @@ const form = reactive<ProductInput>({
   unit: props.product?.unit ?? 'pcs',
 })
 
+watch(() => props.product, (p) => {
+  form.name = p?.name ?? ''
+  form.price = p?.price ?? 0
+  form.stock = p?.stock ?? 0
+  form.category = p?.category ?? null
+  form.unit = p?.unit ?? 'pcs'
+})
+
 function handleSubmit() {
   emit('submit', { ...form })
 }

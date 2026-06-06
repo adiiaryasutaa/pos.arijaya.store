@@ -41,16 +41,26 @@ onMounted(async () => {
 
 async function processTransaction() {
   if (items.value.length === 0) return
+  if (!user.value) {
+    toast.error('Sesi berakhir, silakan login ulang')
+    return navigateTo('/login')
+  }
   processing.value = true
   try {
-    const tx = await createTransaction(items.value, paymentMethod.value, user.value!.id)
+    const soldItems = [...items.value]
+    const tx = await createTransaction(soldItems, paymentMethod.value, user.value.id)
     invoiceTransaction.value = tx
     showInvoice.value = true
     clearCart()
-    products.value = await fetchProducts()
+    // Patch local stock — avoid full re-fetch
+    for (const sold of soldItems) {
+      const p = products.value.find(p => p.id === sold.product.id)
+      if (p) p.stock -= sold.quantity
+    }
     toast.success('Transaksi berhasil!')
-  } catch {
-    toast.error('Gagal memproses transaksi')
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Gagal memproses transaksi'
+    toast.error(msg)
   } finally {
     processing.value = false
   }
