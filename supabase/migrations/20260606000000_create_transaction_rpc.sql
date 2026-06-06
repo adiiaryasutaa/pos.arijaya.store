@@ -11,6 +11,7 @@ create or replace function public.create_transaction(
 returns jsonb
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_tx_id          uuid;
