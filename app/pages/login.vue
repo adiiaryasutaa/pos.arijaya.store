@@ -2,6 +2,7 @@
 definePageMeta({ middleware: 'auth' })
 
 const supabase = useSupabaseClient()
+useHead({ title: 'Masuk — Toko Arijaya' })
 const email = ref('')
 const password = ref('')
 const error = ref('')

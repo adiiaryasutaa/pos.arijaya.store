@@ -7,6 +7,7 @@ import {
 } from '@phosphor-icons/vue'
 
 definePageMeta({ middleware: 'auth' })
+useHead({ title: 'Toko Arijaya' })
 
 const supabase = useSupabaseClient()
 

@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner'
 import type { Product, ProductInput } from '@/composables/useProducts'
 
 definePageMeta({ middleware: 'auth' })
+useHead({ title: 'Inventaris — Toko Arijaya' })
 
 const { fetchProducts, createProduct, updateProduct, deleteProduct } = useProducts()
 const { formatIDR } = useCurrency()

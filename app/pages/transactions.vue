@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner'
 import type { Transaction } from '@/composables/useTransactions'
 
 definePageMeta({ middleware: 'auth' })
+useHead({ title: 'Riwayat Transaksi — Toko Arijaya' })
 
 const { fetchTransactions } = useTransactions()
 const { formatIDR } = useCurrency()
