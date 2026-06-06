@@ -54,17 +54,17 @@ const paymentLabel = (method: string) => method === 'cash' ? 'Tunai' : 'Transfer
 
 <template>
   <div class="min-h-screen bg-background">
-    <header class="border-b px-6 py-4 flex items-center gap-4">
+    <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3">
       <NuxtLink to="/">
         <Button variant="ghost" class="h-12 text-lg gap-2">
           <PhArrowLeft data-icon="inline-start" />
           Kembali
         </Button>
       </NuxtLink>
-      <h1 class="text-3xl font-bold">Riwayat Transaksi</h1>
+      <h1 class="text-2xl lg:text-3xl font-bold">Riwayat Transaksi</h1>
     </header>
 
-    <main class="p-6 max-w-4xl mx-auto flex flex-col gap-6">
+    <main class="p-4 lg:p-6 max-w-4xl mx-auto flex flex-col gap-4 lg:gap-6">
       <!-- Filter -->
       <Card>
         <CardHeader>
@@ -140,7 +140,7 @@ const paymentLabel = (method: string) => method === 'cash' ? 'Tunai' : 'Transfer
                   {{ paymentLabel(tx.payment_method) }}
                 </Badge>
               </div>
-              <Button variant="outline" class="h-12 text-lg gap-2 shrink-0">
+              <Button variant="outline" class="h-12 text-lg gap-2 w-full sm:w-auto shrink-0">
                 <PhReceipt data-icon="inline-start" />
                 Struk
               </Button>

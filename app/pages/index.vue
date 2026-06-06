@@ -39,25 +39,25 @@ const menus = [
 
 <template>
   <div class="min-h-screen bg-background">
-    <header class="border-b px-6 py-4 flex items-center justify-between">
-      <h1 class="text-3xl font-bold">Toko Arijaya</h1>
+    <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center justify-between">
+      <h1 class="text-2xl lg:text-3xl font-bold">Toko Arijaya</h1>
       <Button variant="outline" class="h-12 text-lg gap-2" @click="logout">
         <PhSignOut data-icon="inline-start" />
-        Keluar
+        <span class="hidden sm:inline">Keluar</span>
       </Button>
     </header>
 
-    <main class="p-6 max-w-2xl mx-auto">
-      <p class="text-xl text-muted-foreground mb-6">Selamat datang. Pilih menu di bawah ini:</p>
-      <div class="flex flex-col gap-4">
+    <main class="p-4 lg:p-6 max-w-2xl mx-auto">
+      <p class="text-lg lg:text-xl text-muted-foreground mb-4 lg:mb-6">Selamat datang. Pilih menu di bawah ini:</p>
+      <div class="flex flex-col gap-3 lg:gap-4">
         <NuxtLink v-for="menu in menus" :key="menu.to" :to="menu.to">
-          <Card class="cursor-pointer hover:bg-accent transition-colors">
-            <CardHeader>
+          <Card class="cursor-pointer hover:bg-accent transition-colors active:scale-[0.99]">
+            <CardHeader class="p-4 lg:p-6">
               <div class="flex items-center gap-4">
-                <component :is="menu.icon" class="size-10 text-primary shrink-0" />
+                <component :is="menu.icon" class="size-10 lg:size-12 text-primary shrink-0" />
                 <div>
-                  <CardTitle class="text-2xl">{{ menu.label }}</CardTitle>
-                  <CardDescription class="text-lg mt-1">{{ menu.description }}</CardDescription>
+                  <CardTitle class="text-xl lg:text-2xl">{{ menu.label }}</CardTitle>
+                  <CardDescription class="text-base lg:text-lg mt-1">{{ menu.description }}</CardDescription>
                 </div>
               </div>
             </CardHeader>

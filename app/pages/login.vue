@@ -24,7 +24,7 @@ async function login() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-background p-6">
+  <div class="min-h-screen flex items-center justify-center bg-background p-4 lg:p-6">
     <Card class="w-full max-w-md">
       <CardHeader class="text-center pb-2">
         <CardTitle class="text-4xl font-bold">Toko Arijaya</CardTitle>

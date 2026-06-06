@@ -83,23 +83,24 @@ function stockBadgeVariant(stock: number) {
 
 <template>
   <div class="min-h-screen bg-background">
-    <header class="border-b px-6 py-4 flex items-center gap-4">
+    <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3">
       <NuxtLink to="/">
         <Button variant="ghost" class="h-12 text-lg gap-2">
           <PhArrowLeft data-icon="inline-start" />
           Kembali
         </Button>
       </NuxtLink>
-      <h1 class="text-3xl font-bold flex-1">Inventaris</h1>
+      <h1 class="text-2xl lg:text-3xl font-bold flex-1">Inventaris</h1>
       <Button class="h-12 text-lg gap-2" @click="openAdd">
         <PhPlus data-icon="inline-start" />
-        Tambah Produk
+        <span class="hidden sm:inline">Tambah Produk</span>
+        <span class="sm:hidden">Tambah</span>
       </Button>
     </header>
 
-    <main class="p-6 max-w-5xl mx-auto">
+    <main class="p-4 lg:p-6 max-w-5xl mx-auto">
       <div v-if="loading" class="flex flex-col gap-3">
-        <Skeleton v-for="i in 5" :key="i" class="h-16 w-full rounded-lg" />
+        <Skeleton v-for="i in 5" :key="i" class="h-20 w-full rounded-lg" />
       </div>
 
       <Empty v-else-if="products.length === 0">
@@ -109,50 +110,80 @@ function stockBadgeVariant(stock: number) {
         </EmptyHeader>
       </Empty>
 
-      <div v-else class="rounded-lg border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="text-lg font-semibold">Nama</TableHead>
-              <TableHead class="text-lg font-semibold">Kategori</TableHead>
-              <TableHead class="text-lg font-semibold">Satuan</TableHead>
-              <TableHead class="text-lg font-semibold">Harga</TableHead>
-              <TableHead class="text-lg font-semibold">Stok</TableHead>
-              <TableHead class="text-lg font-semibold text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="p in products" :key="p.id">
-              <TableCell class="text-lg font-medium">{{ p.name }}</TableCell>
-              <TableCell class="text-lg text-muted-foreground">{{ p.category || '-' }}</TableCell>
-              <TableCell class="text-lg">{{ p.unit }}</TableCell>
-              <TableCell class="text-lg">{{ formatIDR(p.price) }}</TableCell>
-              <TableCell>
-                <Badge :variant="stockBadgeVariant(p.stock)" class="text-base px-3 py-1">
-                  {{ p.stock }}
-                </Badge>
-              </TableCell>
-              <TableCell class="text-right">
-                <div class="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" class="h-10 text-base" @click="openEdit(p)">
-                    <PhPencil data-icon="inline-start" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    class="h-10 text-base"
-                    @click="deletingId = p.id"
-                  >
-                    <PhTrash data-icon="inline-start" />
-                    Hapus
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+      <template v-else>
+        <!-- Mobile Card List -->
+        <div class="flex flex-col gap-3 lg:hidden">
+          <div
+            v-for="p in products"
+            :key="p.id"
+            class="rounded-lg border bg-card p-4 flex flex-col gap-3"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <p class="text-lg font-semibold leading-tight">{{ p.name }}</p>
+                <p class="text-base text-muted-foreground mt-1">
+                  {{ p.category || 'Tanpa kategori' }} · {{ p.unit }}
+                </p>
+                <p class="text-xl font-bold text-primary mt-1">{{ formatIDR(p.price) }}</p>
+              </div>
+              <Badge :variant="stockBadgeVariant(p.stock)" class="text-base px-3 py-1 shrink-0">
+                Stok: {{ p.stock }}
+              </Badge>
+            </div>
+            <div class="flex gap-2">
+              <Button variant="outline" class="flex-1 h-12 text-base gap-2" @click="openEdit(p)">
+                <PhPencil class="size-4" />
+                Edit
+              </Button>
+              <Button variant="destructive" class="flex-1 h-12 text-base gap-2" @click="deletingId = p.id">
+                <PhTrash class="size-4" />
+                Hapus
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Table -->
+        <div class="hidden lg:block rounded-lg border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="text-lg font-semibold">Nama</TableHead>
+                <TableHead class="text-lg font-semibold">Kategori</TableHead>
+                <TableHead class="text-lg font-semibold">Satuan</TableHead>
+                <TableHead class="text-lg font-semibold">Harga</TableHead>
+                <TableHead class="text-lg font-semibold">Stok</TableHead>
+                <TableHead class="text-lg font-semibold text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="p in products" :key="p.id">
+                <TableCell class="text-lg font-medium">{{ p.name }}</TableCell>
+                <TableCell class="text-lg text-muted-foreground">{{ p.category || '-' }}</TableCell>
+                <TableCell class="text-lg">{{ p.unit }}</TableCell>
+                <TableCell class="text-lg">{{ formatIDR(p.price) }}</TableCell>
+                <TableCell>
+                  <Badge :variant="stockBadgeVariant(p.stock)" class="text-base px-3 py-1">
+                    {{ p.stock }}
+                  </Badge>
+                </TableCell>
+                <TableCell class="text-right">
+                  <div class="flex gap-2 justify-end">
+                    <Button variant="outline" size="sm" class="h-12 text-base" @click="openEdit(p)">
+                      <PhPencil data-icon="inline-start" />
+                      Edit
+                    </Button>
+                    <Button variant="destructive" size="sm" class="h-12 text-base" @click="deletingId = p.id">
+                      <PhTrash data-icon="inline-start" />
+                      Hapus
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </template>
     </main>
 
     <!-- Add/Edit Dialog -->

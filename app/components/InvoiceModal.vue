@@ -59,7 +59,7 @@ async function share() {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="max-w-md">
+    <DialogContent class="w-[calc(100vw-2rem)] max-w-md">
       <DialogHeader>
         <DialogTitle class="sr-only">Struk Belanja</DialogTitle>
       </DialogHeader>
