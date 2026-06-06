@@ -9,6 +9,13 @@ import {
 } from '@phosphor-icons/vue'
 import { toast } from 'vue-sonner'
 import type { Transaction } from '@/composables/useTransactions'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 
 definePageMeta({ middleware: 'auth' })
 
