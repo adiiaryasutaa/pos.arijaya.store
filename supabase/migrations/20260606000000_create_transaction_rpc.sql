@@ -1,9 +1,11 @@
 -- Atomic transaction creation: inserts transaction + items + decrements stock
 -- in a single PL/pgSQL block so partial failures fully roll back.
+-- Security: user_id derived from auth.uid() (not caller-supplied) to prevent attribution spoofing.
+-- Total and subtotals recomputed server-side to prevent client-side forgery.
+drop function if exists public.create_transaction(text, numeric, uuid, jsonb);
+
 create or replace function public.create_transaction(
   p_payment_method text,
-  p_total          numeric,
-  p_user_id        uuid,
   p_items          jsonb
 )
 returns jsonb
@@ -14,11 +16,24 @@ declare
   v_tx_id          uuid;
   v_item           jsonb;
   v_rows_affected  int;
+  v_computed_total numeric := 0;
   v_result         jsonb;
 begin
-  -- Insert transaction header
+  -- Validate caller is authenticated
+  if auth.uid() is null then
+    raise exception 'Unauthorized';
+  end if;
+
+  -- Compute total server-side: price * quantity per item
+  select coalesce(sum(
+    (it->>'product_price')::numeric * (it->>'quantity')::integer
+  ), 0)
+  into v_computed_total
+  from jsonb_array_elements(p_items) it;
+
+  -- Insert transaction header — user_id from session, total from items
   insert into public.transactions (payment_method, total, user_id)
-  values (p_payment_method, p_total, p_user_id)
+  values (p_payment_method, v_computed_total, auth.uid())
   returning id into v_tx_id;
 
   -- Insert items and atomically decrement stock
@@ -37,7 +52,8 @@ begin
       v_item->>'product_name',
       (v_item->>'product_price')::numeric,
       (v_item->>'quantity')::integer,
-      (v_item->>'subtotal')::numeric
+      -- subtotal recomputed, not trusted from client
+      (v_item->>'product_price')::numeric * (v_item->>'quantity')::integer
     );
 
     -- Atomic decrement: only succeeds if stock >= quantity

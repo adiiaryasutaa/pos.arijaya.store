@@ -41,25 +41,20 @@ export function useTransactions() {
 
   async function createTransaction(
     cartItems: CartItem[],
-    paymentMethod: 'cash' | 'transfer',
-    userId: string
+    paymentMethod: 'cash' | 'transfer'
   ): Promise<Transaction> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any
-    const total = cartItems.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
 
     const items = cartItems.map(i => ({
       product_id: i.product.id,
       product_name: i.product.name,
       product_price: i.product.price,
       quantity: i.quantity,
-      subtotal: i.product.price * i.quantity,
     }))
 
     const { data, error } = await sb.rpc('create_transaction', {
       p_payment_method: paymentMethod,
-      p_total: total,
-      p_user_id: userId,
       p_items: items,
     })
 

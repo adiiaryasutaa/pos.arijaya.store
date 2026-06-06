@@ -48,7 +48,7 @@ async function processTransaction() {
   processing.value = true
   try {
     const soldItems = [...items.value]
-    const tx = await createTransaction(soldItems, paymentMethod.value, user.value.id)
+    const tx = await createTransaction(soldItems, paymentMethod.value)
     invoiceTransaction.value = tx
     showInvoice.value = true
     clearCart()
