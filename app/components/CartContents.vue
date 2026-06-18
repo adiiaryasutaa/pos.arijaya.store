@@ -22,7 +22,7 @@ const { formatIDR } = useCurrency()
 // Common rupiah notes so the cashier can tap instead of typing the full amount.
 const quickAmounts = [20000, 50000, 100000]
 
-// Clearing the number input yields null/NaN — treat both as "no amount entered yet".
+// Clearing the input yields NaN via v-model.number — treat as "no amount entered yet".
 const received = computed(() => {
   const v = amountReceived.value
   return v == null || Number.isNaN(v) ? null : v
@@ -90,9 +90,9 @@ function setExact() {
       <p class="text-lg font-medium">Uang Diterima</p>
       <Input
         v-model.number="amountReceived"
-        type="number"
+        type="text"
         inputmode="numeric"
-        min="0"
+        pattern="[0-9]*"
         placeholder="0"
         class="h-14 text-xl"
       />

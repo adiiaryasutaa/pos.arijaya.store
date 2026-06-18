@@ -43,10 +43,11 @@ function handleSubmit() {
         <FieldLabel class="text-lg">Harga (Rp) *</FieldLabel>
         <Input
           v-model.number="form.price"
-          type="number"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*\.?[0-9]*"
           class="h-12 text-lg"
           placeholder="0"
-          min="0"
           required
         />
       </Field>
@@ -55,10 +56,11 @@ function handleSubmit() {
         <FieldLabel class="text-lg">Stok *</FieldLabel>
         <Input
           v-model.number="form.stock"
-          type="number"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
           class="h-12 text-lg"
           placeholder="0"
-          min="0"
           required
         />
       </Field>
