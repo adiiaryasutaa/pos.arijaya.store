@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { PhEye, PhEyeSlash } from '@phosphor-icons/vue'
+
 definePageMeta({ middleware: 'auth' })
 
 const supabase = useSupabaseClient()
 useHead({ title: 'Masuk — Toko Arijaya' })
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
 
@@ -48,15 +51,26 @@ async function login() {
             </Field>
             <Field>
               <FieldLabel class="text-xl">Password</FieldLabel>
-              <Input
-                id="password"
-                v-model="password"
-                type="password"
-                placeholder="Password"
-                class="h-14 text-xl"
-                required
-                autocomplete="current-password"
-              />
+              <div class="relative">
+                <Input
+                  id="password"
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Password"
+                  class="h-14 text-xl pr-14"
+                  required
+                  autocomplete="current-password"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 size-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent transition-colors"
+                  :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+                  @click="showPassword = !showPassword"
+                >
+                  <PhEyeSlash v-if="showPassword" class="size-6" />
+                  <PhEye v-else class="size-6" />
+                </button>
+              </div>
             </Field>
           </FieldGroup>
 

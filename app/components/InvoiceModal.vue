@@ -45,6 +45,12 @@ async function share() {
     '',
     `TOTAL: ${formatIDR(props.transaction.total)}`,
     `Pembayaran: ${paymentLabel.value}`,
+    ...(props.transaction.amount_paid != null
+      ? [
+          `Bayar: ${formatIDR(props.transaction.amount_paid)}`,
+          `Kembali: ${formatIDR(props.transaction.change_amount ?? 0)}`,
+        ]
+      : []),
     '',
     'Terima kasih telah berbelanja!',
   ].join('\n')
@@ -68,8 +74,8 @@ async function share() {
         <!-- Store Header -->
         <div class="text-center border-b pb-4">
           <p class="text-2xl font-bold">Toko Arijaya</p>
-          <p class="text-base text-muted-foreground mt-1">{{ formatDate(transaction.created_at) }}</p>
-          <p class="text-sm text-muted-foreground">No. {{ shortId(transaction.id) }}</p>
+          <p class="text-base text-foreground/70 mt-1">{{ formatDate(transaction.created_at) }}</p>
+          <p class="text-sm text-foreground/60">No. {{ shortId(transaction.id) }}</p>
         </div>
 
         <!-- Items -->
@@ -81,7 +87,7 @@ async function share() {
           >
             <div class="flex-1">
               <p class="text-lg font-medium">{{ item.product_name }}</p>
-              <p class="text-base text-muted-foreground">
+              <p class="text-base text-foreground/70">
                 {{ formatIDR(item.product_price) }} × {{ item.quantity }}
               </p>
             </div>
@@ -101,6 +107,18 @@ async function share() {
           <p class="text-muted-foreground">Pembayaran</p>
           <Badge variant="outline" class="text-base px-3 py-1">{{ paymentLabel }}</Badge>
         </div>
+
+        <!-- Cash tendered + change -->
+        <template v-if="transaction.amount_paid != null">
+          <div class="flex justify-between items-center text-lg">
+            <p class="text-muted-foreground">Bayar</p>
+            <p class="font-medium">{{ formatIDR(transaction.amount_paid) }}</p>
+          </div>
+          <div class="flex justify-between items-center text-lg">
+            <p class="text-muted-foreground">Kembali</p>
+            <p class="font-semibold">{{ formatIDR(transaction.change_amount ?? 0) }}</p>
+          </div>
+        </template>
 
         <Separator />
 

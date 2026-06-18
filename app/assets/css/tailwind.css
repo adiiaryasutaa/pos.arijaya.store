@@ -1,6 +1,9 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap');
-
+/*
+ * Uses Tailwind's default system-font stack — no external font request, so the UI
+ * renders instantly and works on flaky/offline store wifi. To use a branded font
+ * (e.g. Roboto), install @nuxt/fonts and set --font-sans below; avoid a render-blocking
+ * Google Fonts @import.
+ */
 @import "tailwindcss";
 @import "tw-animate-css";
 

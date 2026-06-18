@@ -122,7 +122,7 @@ function stockBadgeVariant(stock: number) {
             <div class="flex items-start justify-between gap-2">
               <div class="flex-1 min-w-0">
                 <p class="text-lg font-semibold leading-tight">{{ p.name }}</p>
-                <p class="text-base text-muted-foreground mt-1">
+                <p class="text-base text-foreground/70 mt-1">
                   {{ p.category || 'Tanpa kategori' }} · {{ p.unit }}
                 </p>
                 <p class="text-xl font-bold text-primary mt-1">{{ formatIDR(p.price) }}</p>
@@ -160,7 +160,7 @@ function stockBadgeVariant(stock: number) {
             <TableBody>
               <TableRow v-for="p in products" :key="p.id">
                 <TableCell class="text-lg font-medium">{{ p.name }}</TableCell>
-                <TableCell class="text-lg text-muted-foreground">{{ p.category || '-' }}</TableCell>
+                <TableCell class="text-lg text-foreground/70">{{ p.category || '-' }}</TableCell>
                 <TableCell class="text-lg">{{ p.unit }}</TableCell>
                 <TableCell class="text-lg">{{ formatIDR(p.price) }}</TableCell>
                 <TableCell>

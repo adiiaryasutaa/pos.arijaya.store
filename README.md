@@ -1,75 +1,75 @@
-# Nuxt Minimal Starter
+# Toko Arijaya — POS
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Point-of-sale web app for **Toko Arijaya**, a small Indonesian grocery store. Built
+mobile-first with oversized touch targets and Indonesian copy for **elderly, low-tech
+cashiers**, and designed to run across **a few devices at once**.
+
+## Features
+
+- **Kasir** (`/cashier`) — product grid with search + category filter, cart, cash & change
+  (`kembalian`) calculator, realtime stock sync across registers.
+- **Inventaris** (`/inventory`) — CRUD products (mobile cards / desktop table).
+- **Riwayat Transaksi** (`/transactions`) — paginated history with date presets
+  (Hari ini / Minggu ini / Bulan ini / Semua) and accurate revenue summary.
+- Email/password auth, printable/shareable receipts.
+
+## Stack
+
+Nuxt 4 · Vue 3 · TypeScript · Supabase (auth + Postgres) · Tailwind CSS v4 ·
+shadcn-vue (Phosphor icons) · vue-sonner.
+
+## Prerequisites
+
+- Node.js (the dev script sets `TMPDIR=/tmp` to avoid an EINVAL socket error on Node v24).
+- [pnpm](https://pnpm.io/)
+- [Docker](https://www.docker.com/) — required by the local Supabase stack.
 
 ## Setup
 
-Make sure to install dependencies:
-
 ```bash
-# npm
-npm install
-
-# pnpm
 pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+cp .env.example .env   # then fill in SUPABASE_URL and SUPABASE_KEY
 ```
 
-## Development Server
+For local development, point `.env` at the local stack values printed by `pnpm db:status`
+(API URL + anon key).
 
-Start the development server on `http://localhost:3000`:
+## Database (local Supabase)
 
 ```bash
-# npm
-npm run dev
+pnpm db:start    # start the local stack (Docker)
+pnpm db:reset    # apply all migrations + run seed.sql
+pnpm db:seed     # re-run seed only (keeps existing data)
+pnpm db:status   # show local URLs + keys
+pnpm db:types    # regenerate app/types/database.types.ts from the live schema
+pnpm db:push     # push migrations to the linked remote project
+pnpm db:stop     # stop the local stack
+```
 
-# pnpm
-pnpm dev
+Migrations live in `supabase/migrations/` and are **additive** — never edit an applied
+migration; add a new one. After changing the schema, run `pnpm db:types` to keep the
+generated types in sync.
 
-# yarn
-yarn dev
+### Schema overview
 
-# bun
-bun run dev
+- `products` — name (unique), price, stock, category, unit.
+- `transactions` — payment_method, total, amount_paid, change_amount, user_id.
+- `transaction_items` — price snapshot per line (survives product edits/deletes).
+- `create_transaction(p_payment_method, p_items, p_amount_paid)` — `SECURITY DEFINER` RPC:
+  the **only** write path for sales. Recomputes totals/subtotals server-side, derives
+  `user_id` from `auth.uid()`, and atomically decrements stock (rolls back on shortfall).
+
+## Development
+
+```bash
+pnpm dev         # http://localhost:3000
 ```
 
 ## Production
 
-Build the application for production:
-
 ```bash
-# npm
-npm run build
-
-# pnpm
 pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
 pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+See the [Nuxt deployment docs](https://nuxt.com/docs/getting-started/deployment).
