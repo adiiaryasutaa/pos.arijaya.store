@@ -3,8 +3,9 @@ import { PhEye, PhEyeSlash } from '@phosphor-icons/vue'
 
 definePageMeta({ middleware: 'auth' })
 
+const { storeName } = useSettings()
 const supabase = useSupabaseClient()
-useHead({ title: 'Masuk — Toko Arijaya' })
+useHead({ title: 'Masuk' })
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
@@ -22,6 +23,7 @@ async function login() {
   if (err) {
     error.value = 'Email atau password salah. Coba lagi.'
   } else {
+    await refreshNuxtData('settings')
     await navigateTo('/')
   }
 }
@@ -31,7 +33,7 @@ async function login() {
   <div class="min-h-screen flex items-center justify-center bg-background p-4 lg:p-6">
     <Card class="w-full max-w-md">
       <CardHeader class="text-center pb-2">
-        <CardTitle class="text-4xl font-bold">Toko Arijaya</CardTitle>
+        <CardTitle class="text-4xl font-bold">{{ storeName }}</CardTitle>
         <CardDescription class="text-xl mt-2">Silakan masuk untuk melanjutkan</CardDescription>
       </CardHeader>
       <CardContent>
