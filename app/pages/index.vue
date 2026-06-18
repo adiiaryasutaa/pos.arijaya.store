@@ -3,17 +3,21 @@ import {
   PhShoppingCart,
   PhPackage,
   PhClipboardText,
+  PhGear,
   PhSignOut,
 } from '@phosphor-icons/vue'
 
 definePageMeta({ middleware: 'auth' })
-useHead({ title: 'Toko Arijaya' })
+
+const { storeName, settings } = useSettings()
+useHead({ title: '' })
 
 const supabase = useSupabaseClient()
 const showLogoutConfirm = ref(false)
 
 async function logout() {
   showLogoutConfirm.value = false
+  settings.value.fontSize = 'sedang'  // reset per-user preference before sign-out
   await supabase.auth.signOut()
   await navigateTo('/login')
 }
@@ -37,13 +41,19 @@ const menus = [
     icon: PhClipboardText,
     to: '/transactions',
   },
+  {
+    label: 'Pengaturan',
+    description: 'Nama toko, ukuran teks, dan akun',
+    icon: PhGear,
+    to: '/settings',
+  },
 ]
 </script>
 
 <template>
   <div class="min-h-screen bg-background">
     <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center justify-between">
-      <h1 class="text-2xl lg:text-3xl font-bold">Toko Arijaya</h1>
+      <h1 class="text-2xl lg:text-3xl font-bold">{{ storeName }}</h1>
       <Button variant="outline" class="h-12 text-lg gap-2" @click="showLogoutConfirm = true">
         <PhSignOut data-icon="inline-start" />
         <span class="hidden sm:inline">Keluar</span>

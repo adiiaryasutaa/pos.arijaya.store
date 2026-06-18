@@ -23,6 +23,7 @@ async function login() {
   if (err) {
     error.value = 'Email atau password salah. Coba lagi.'
   } else {
+    await nextTick()
     await refreshNuxtData('settings')
     await navigateTo('/')
   }

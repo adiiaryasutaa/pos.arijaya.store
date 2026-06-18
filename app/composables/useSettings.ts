@@ -1,5 +1,3 @@
-// TODO: switch to useSupabaseClient<Database>() after running pnpm db:types
-
 export type FontSize = 'kecil' | 'sedang' | 'besar'
 
 interface Settings {
@@ -42,6 +40,9 @@ export function useSettings() {
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ])
+
+    if (configResult.error) console.error('[useSettings] loadSettings:', configResult.error)
+    if (prefsResult.error) console.error('[useSettings] loadSettings (prefs):', prefsResult.error)
 
     if (configResult.data) {
       settings.value.storeName = configResult.data.store_name
