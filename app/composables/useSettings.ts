@@ -11,8 +11,7 @@ export function useSettings() {
     fontSize: 'sedang',
   }))
 
-  // TODO: switch to useSupabaseClient<Database>() after running pnpm db:types
-  const supabase = useSupabaseClient<any>()
+  const supabase = useSupabaseClient<Database>()
   const user = useSupabaseUser()
 
   const storeName = computed({
