@@ -5,7 +5,7 @@ import type { Transaction } from '@/composables/useTransactions'
 import { TRANSACTIONS_PAGE_SIZE } from '@/composables/useTransactions'
 
 definePageMeta({ middleware: 'auth' })
-useHead({ title: 'Riwayat Transaksi — Toko Arijaya' })
+useHead({ title: 'Riwayat Transaksi' })
 
 const { fetchTransactions, fetchSummary } = useTransactions()
 const { formatIDR } = useCurrency()

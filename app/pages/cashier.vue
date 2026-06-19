@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/sheet'
 
 definePageMeta({ middleware: 'auth' })
-useHead({ title: 'Kasir — Toko Arijaya' })
+useHead({ title: 'Kasir' })
 
 const { fetchProducts } = useProducts()
 const { createTransaction } = useTransactions()

@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Rules
+
+1. **No hallucinating** — never guess, invent, or assume details about the codebase, APIs, or behavior. Read the actual files first.
+2. **Ask before assuming** — if anything is unclear, ask. Prefer asking many specific questions over producing a hallucinated response.
+3. **Best practices always** — follow language, framework, and security best practices at all times.
+4. **Prefer commands over generation** — if an action can be done by executing a command, run it instead of generating the output manually.
+5. **Always format after editing** — run `pnpm format` after every file create or edit.
+
 ## Commands
 
 ```bash

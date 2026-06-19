@@ -13,6 +13,7 @@ export function useSettings() {
 
   const supabase = useSupabaseClient<Database>()
   const user = useSupabaseUser()
+  const userId = computed(() => user.value?.id ?? (user.value as any)?.sub)
 
   const storeName = computed({
     get: () => settings.value.storeName,
@@ -31,11 +32,11 @@ export function useSettings() {
   async function loadSettings() {
     const [configResult, prefsResult] = await Promise.all([
       supabase.from('store_config').select('store_name').eq('id', 1).single(),
-      user.value
+      userId.value
         ? supabase
             .from('user_preferences')
             .select('font_size')
-            .eq('user_id', user.value.id)
+            .eq('user_id', userId.value)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ])
@@ -49,6 +50,8 @@ export function useSettings() {
     if (prefsResult.data) {
       settings.value.fontSize = prefsResult.data.font_size as FontSize
     }
+
+    return null
   }
 
   async function saveStoreName(name: string) {
@@ -61,10 +64,14 @@ export function useSettings() {
   }
 
   async function saveFontSize(size: FontSize) {
-    if (!user.value) return { error: new Error('Not authenticated') }
+    if (!userId.value) {
+      console.error('[useSettings] saveFontSize: no user id', user.value)
+      return { error: new Error('Not authenticated') }
+    }
     const { error } = await supabase
       .from('user_preferences')
-      .upsert({ user_id: user.value.id, font_size: size })
+      .upsert({ user_id: userId.value, font_size: size })
+    if (error) console.error('[useSettings] saveFontSize:', error)
     if (!error) settings.value.fontSize = size
     return { error }
   }

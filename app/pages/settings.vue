@@ -10,7 +10,6 @@ const { storeName, fontSize, saveStoreName, saveFontSize } = useSettings()
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 
-// --- Nama Toko ---
 const storeNameDraft = ref(storeName.value)
 const savingName = ref(false)
 
@@ -32,14 +31,12 @@ async function handleSaveStoreName() {
   }
 }
 
-// --- Ukuran Teks ---
-async function onFontSizeChange(val: string | string[] | undefined) {
+async function onFontSizeChange(val: unknown) {
   if (!val || typeof val !== 'string') return
   const { error } = await saveFontSize(val as FontSize)
   if (error) toast.error('Gagal menyimpan ukuran teks')
 }
 
-// --- Ganti Password ---
 const newPassword = ref('')
 const confirmPassword = ref('')
 const showNewPassword = ref(false)
@@ -77,7 +74,6 @@ async function changePassword() {
     </header>
 
     <main class="p-4 lg:p-6 max-w-2xl mx-auto flex flex-col gap-5">
-      <!-- Nama Toko -->
       <Card>
         <CardHeader>
           <CardTitle class="text-xl">Nama Toko</CardTitle>

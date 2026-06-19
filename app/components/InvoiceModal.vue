@@ -10,6 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { formatIDR } = useCurrency()
+const { storeName } = useSettings()
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString('id-ID', {
@@ -35,7 +36,7 @@ const canShare = typeof navigator !== 'undefined' && !!navigator.share
 async function share() {
   if (!props.transaction) return
   const text = [
-    '🧾 Struk Belanja - Toko Arijaya',
+    `Struk Belanja - ${storeName.value}`,
     `Tanggal: ${formatDate(props.transaction.created_at)}`,
     `No. Transaksi: ${shortId(props.transaction.id)}`,
     '',
@@ -73,7 +74,7 @@ async function share() {
       <div v-if="transaction" class="flex flex-col gap-4">
         <!-- Store Header -->
         <div class="text-center border-b pb-4">
-          <p class="text-2xl font-bold">Toko Arijaya</p>
+          <p class="text-2xl font-bold">{{ storeName }}</p>
           <p class="text-base text-foreground/70 mt-1">{{ formatDate(transaction.created_at) }}</p>
           <p class="text-sm text-foreground/60">No. {{ shortId(transaction.id) }}</p>
         </div>
