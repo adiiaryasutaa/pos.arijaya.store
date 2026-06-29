@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   PhArrowLeft,
+  PhArrowsClockwise,
   PhMagnifyingGlass,
   PhShoppingCart,
 } from '@phosphor-icons/vue'
@@ -22,16 +23,9 @@ useHead({ title: 'Kasir' })
 const { fetchProducts } = useProducts()
 const { createTransaction } = useTransactions()
 const { formatIDR } = useCurrency()
-const {
-  items,
-  addItem,
-  removeItem,
-  updateQuantity,
-  clearCart,
-  syncWithProducts,
-  total,
-  itemCount,
-} = useCart()
+const cart = useCartStore()
+const { items, total, itemCount } = storeToRefs(cart)
+const { addItem, removeItem, updateQuantity, clearCart, syncWithProducts } = cart
 const supabase = useSupabaseClient<Database>()
 const user = useSupabaseUser()
 
@@ -44,6 +38,7 @@ const processing = ref(false)
 const invoiceTransaction = ref<Transaction | null>(null)
 const showInvoice = ref(false)
 const cartOpen = ref(false)
+const refreshing = ref(false)
 
 const categories = computed(() => {
   const set = new Set<string>()
@@ -62,14 +57,21 @@ const filteredProducts = computed(() => {
 
 let channel: ReturnType<typeof supabase.channel> | null = null
 
-onMounted(async () => {
+async function loadProducts() {
+  refreshing.value = true
   try {
     products.value = await fetchProducts()
     // Reconcile any cart restored from a previous session against current stock/prices.
     syncWithProducts(products.value)
   } catch {
     toast.error('Gagal memuat produk')
+  } finally {
+    refreshing.value = false
   }
+}
+
+onMounted(async () => {
+  await loadProducts()
 
   // Keep the on-screen stock fresh when another register sells/edits a product.
   // Display-only — overselling is still prevented server-side at checkout.
@@ -139,7 +141,7 @@ async function processTransaction() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen overflow-hidden bg-background flex flex-col">
     <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3 shrink-0">
       <NuxtLink to="/">
         <Button variant="ghost" class="h-12 text-lg gap-2">
@@ -154,13 +156,24 @@ async function processTransaction() {
       <!-- Product Grid -->
       <div class="flex-1 flex flex-col overflow-hidden">
         <div class="p-3 lg:p-4 border-b flex flex-col gap-3">
-          <div class="relative">
-            <PhMagnifyingGlass class="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-            <Input
-              v-model="search"
-              class="h-12 text-lg pl-12"
-              placeholder="Cari produk..."
-            />
+          <div class="flex gap-3">
+            <div class="relative flex-1">
+              <PhMagnifyingGlass class="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+              <Input
+                v-model="search"
+                class="h-12 text-lg pl-12"
+                placeholder="Cari produk..."
+              />
+            </div>
+            <Button
+              variant="outline"
+              class="h-12 w-12 shrink-0"
+              :disabled="refreshing"
+              aria-label="Muat ulang produk"
+              @click="loadProducts"
+            >
+              <PhArrowsClockwise class="size-5" :class="refreshing ? 'animate-spin' : ''" />
+            </Button>
           </div>
 
           <!-- Category filter chips -->
@@ -184,7 +197,7 @@ async function processTransaction() {
           </div>
         </div>
 
-        <ScrollArea class="flex-1">
+        <ScrollArea class="flex-1 min-h-0">
           <div class="p-3 lg:p-4 pb-28 lg:pb-4">
             <div
               v-if="filteredProducts.length === 0"
@@ -216,7 +229,7 @@ async function processTransaction() {
       </div>
 
       <!-- Desktop Cart Sidebar -->
-      <div class="hidden lg:flex lg:w-96 border-l flex-col bg-card">
+      <div class="hidden lg:flex lg:w-96 border-l flex-col bg-card overflow-hidden">
         <div class="p-4 border-b flex items-center gap-3">
           <PhShoppingCart class="size-7" />
           <span class="text-xl font-bold">Keranjang</span>
@@ -255,7 +268,7 @@ async function processTransaction() {
           </Button>
         </SheetTrigger>
 
-        <SheetContent side="bottom" class="h-[88dvh] flex flex-col p-0 rounded-t-2xl">
+        <SheetContent side="bottom" class="h-[88dvh]! flex flex-col p-0 rounded-t-xl">
           <SheetHeader class="p-4 border-b shrink-0">
             <SheetTitle class="text-xl flex items-center gap-2">
               <PhShoppingCart class="size-6" />

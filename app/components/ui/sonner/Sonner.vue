@@ -32,7 +32,7 @@ const props = defineProps<ToasterProps>()
     }"
     :toast-options="{
       classes: {
-        toast: 'rounded-none',
+        toast: 'rounded-md',
       },
     }"
     v-bind="props"

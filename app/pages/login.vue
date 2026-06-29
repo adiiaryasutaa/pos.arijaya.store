@@ -3,7 +3,7 @@ import { PhEye, PhEyeSlash } from '@phosphor-icons/vue'
 
 definePageMeta({ middleware: 'auth' })
 
-const { storeName } = useSettings()
+const { storeName } = storeToRefs(useSettingsStore())
 const supabase = useSupabaseClient()
 useHead({ title: 'Masuk' })
 const email = ref('')

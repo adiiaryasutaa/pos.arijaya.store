@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { PhArrowLeft, PhEye, PhEyeSlash } from '@phosphor-icons/vue'
+import { PhArrowLeft, PhEye, PhEyeSlash, PhStorefront, PhTextAa, PhUserCircle } from '@phosphor-icons/vue'
 import { toast } from 'vue-sonner'
-import type { FontSize } from '@/composables/useSettings'
+import type { FontSize } from '@/stores/settings'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Pengaturan' })
 
-const { storeName, fontSize, saveStoreName, saveFontSize } = useSettings()
+const settings = useSettingsStore()
+const { storeName, fontSize } = storeToRefs(settings)
+const { saveStoreName, saveFontSize } = settings
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 
@@ -63,23 +65,34 @@ async function changePassword() {
 
 <template>
   <div class="min-h-screen bg-background">
-    <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3">
-      <NuxtLink to="/">
+    <header class="border-b">
+      <div class="container mx-auto px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3">
+        <h1 class="text-2xl lg:text-3xl font-bold">Pengaturan</h1>
+      </div>
+    </header>
+
+    <main class="p-4 lg:p-6 container mx-auto flex flex-col gap-5">
+      <NuxtLink to="/" class="w-fit">
         <Button variant="ghost" class="h-12 text-lg gap-2">
           <PhArrowLeft data-icon="inline-start" />
           Kembali
         </Button>
       </NuxtLink>
-      <h1 class="text-2xl lg:text-3xl font-bold">Pengaturan</h1>
-    </header>
 
-    <main class="p-4 lg:p-6 max-w-2xl mx-auto flex flex-col gap-5">
-      <Card>
+      <div class="grid gap-5 lg:grid-cols-2 items-start">
+      <Card class="rounded-xl">
         <CardHeader>
-          <CardTitle class="text-xl">Nama Toko</CardTitle>
-          <CardDescription class="text-base">
-            Ditampilkan di judul halaman dan struk belanja.
-          </CardDescription>
+          <div class="flex items-center gap-3">
+            <div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <PhStorefront class="size-6" />
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <CardTitle class="text-xl">Nama Toko</CardTitle>
+              <CardDescription class="text-base">
+                Ditampilkan di judul halaman dan struk belanja.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <form class="flex flex-col gap-3" @submit.prevent="handleSaveStoreName">
@@ -103,12 +116,19 @@ async function changePassword() {
       </Card>
 
       <!-- Ukuran Teks -->
-      <Card>
+      <Card class="rounded-xl">
         <CardHeader>
-          <CardTitle class="text-xl">Ukuran Teks</CardTitle>
-          <CardDescription class="text-base">
-            Mengatur ukuran teks di seluruh aplikasi.
-          </CardDescription>
+          <div class="flex items-center gap-3">
+            <div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <PhTextAa class="size-6" />
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <CardTitle class="text-xl">Ukuran Teks</CardTitle>
+              <CardDescription class="text-base">
+                Mengatur ukuran teks di seluruh aplikasi.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <ToggleGroup
@@ -132,9 +152,19 @@ async function changePassword() {
       </Card>
 
       <!-- Akun Pengguna -->
-      <Card>
+      <Card class="rounded-xl lg:col-span-2">
         <CardHeader>
-          <CardTitle class="text-xl">Akun Pengguna</CardTitle>
+          <div class="flex items-center gap-3">
+            <div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <PhUserCircle class="size-6" />
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <CardTitle class="text-xl">Akun Pengguna</CardTitle>
+              <CardDescription class="text-base">
+                Kelola email dan password akun Anda.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent class="flex flex-col gap-5">
           <div class="flex flex-col gap-1">
@@ -202,6 +232,7 @@ async function changePassword() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </main>
   </div>
 </template>

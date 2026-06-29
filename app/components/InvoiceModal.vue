@@ -10,7 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { formatIDR } = useCurrency()
-const { storeName } = useSettings()
+const { storeName } = storeToRefs(useSettingsStore())
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString('id-ID', {
@@ -66,8 +66,8 @@ async function share() {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="w-[calc(100vw-2rem)] max-w-md">
-      <DialogHeader>
+    <DialogContent class="w-[calc(100%-2rem)] max-w-lg">
+      <DialogHeader class="border-0 pb-0 pr-0">
         <DialogTitle class="sr-only">Struk Belanja</DialogTitle>
       </DialogHeader>
 

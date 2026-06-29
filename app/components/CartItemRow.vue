@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PhMinus, PhPlus, PhTrash } from '@phosphor-icons/vue'
-import type { CartItem } from '@/composables/useCart'
+import type { CartItem } from '@/stores/cart'
 
 const props = defineProps<{ item: CartItem }>()
 const emit = defineEmits<{

@@ -3,70 +3,146 @@ import {
   FlexRender,
   createColumnHelper,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useVueTable,
-  type ColumnFiltersState,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
 } from '@tanstack/vue-table'
-import { IconPencil, IconTrash, IconChevronUp, IconChevronDown, IconSelector, IconFileExport, IconChevronLeft, IconChevronRight } from '@tabler/icons-vue'
+import { IconPencil, IconTrash, IconChevronUp, IconChevronDown, IconSelector, IconFileExport, IconChevronLeft, IconChevronRight, IconPlus, IconPackage, IconFilterOff, IconRefresh } from '@tabler/icons-vue'
+import { useDebounceFn } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import type { Product } from '@/composables/useProducts'
+import type { Product, ProductSortId } from '@/composables/useProducts'
 import { valueUpdater } from '@/components/ui/table/utils'
-
-const props = defineProps<{
-  products: Product[]
-  loading: boolean
-}>()
 
 const emit = defineEmits<{
   edit: [product: Product]
   delete: [product: Product]
-  refresh: []
+  add: []
 }>()
 
 const { formatIDR } = useCurrency()
-const { deleteProduct } = useProducts()
+const { fetchProductPage, fetchCategories, deleteProduct } = useProducts()
 
-// --- Filters (pre-table, client-side) ---
+// --- Filters (server-side) ---
 const nameFilter = ref('')
 const categoryFilter = ref('__all__')
-const stockFilter = ref('all')
+const stockFilter = ref<'all' | 'in' | 'out'>('all')
+const categories = ref<string[]>([])
 
-const categories = computed(() => {
-  const cats = props.products
-    .map((p) => p.category)
-    .filter((c): c is string => !!c)
-  return [...new Set(cats)].sort()
-})
+// "Truly empty" vs "filtered to nothing" — only the former offers a create button.
+const hasActiveFilters = computed(() =>
+  nameFilter.value.trim() !== '' || categoryFilter.value !== '__all__' || stockFilter.value !== 'all',
+)
 
-const filteredProducts = computed(() => {
-  return props.products.filter((p) => {
-    if (categoryFilter.value !== '__all__' && p.category !== categoryFilter.value) return false
-    if (stockFilter.value === 'in' && p.stock === 0) return false
-    if (stockFilter.value === 'out' && p.stock > 0) return false
-    return true
-  })
-})
-
-// --- TanStack table state ---
+// --- TanStack table state (manual mode: Postgres does filter/sort/paginate) ---
 const sorting = ref<SortingState>([])
-const columnFilters = ref<ColumnFiltersState>([])
 const rowSelection = ref<RowSelectionState>({})
 const pagination = ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
-// Sync nameFilter → TanStack columnFilter
-watch(nameFilter, (v) => {
-  columnFilters.value = v ? [{ id: 'name', value: v }] : []
-  pagination.value = { ...pagination.value, pageIndex: 0 }
+// --- Server-fetched page ---
+const data = ref<Product[]>([])
+const total = ref(0)
+const loading = ref(true)
+
+// --- URL sync: hydrate state from the query string on first load. Runs before the
+// watchers below are attached, so seeding these refs doesn't trigger a refetch. ---
+const route = useRoute()
+const router = useRouter()
+const qs = route.query
+const qStr = (v: unknown) => (Array.isArray(v) ? v[0] : v) as string | undefined
+
+nameFilter.value = qStr(qs.q) ?? ''
+categoryFilter.value = qStr(qs.cat) ?? '__all__'
+const stockQ = qStr(qs.stock)
+stockFilter.value = stockQ === 'in' || stockQ === 'out' ? stockQ : 'all'
+const pageQ = Number(qStr(qs.page))
+pagination.value.pageIndex = Number.isFinite(pageQ) && pageQ > 1 ? pageQ - 1 : 0
+const sortQ = qStr(qs.sort)
+if (sortQ) sorting.value = [{ id: sortQ, desc: qStr(qs.dir) === 'desc' }]
+
+function syncUrl() {
+  const q: Record<string, string> = {}
+  if (nameFilter.value.trim()) q.q = nameFilter.value.trim()
+  if (categoryFilter.value !== '__all__') q.cat = categoryFilter.value
+  if (stockFilter.value !== 'all') q.stock = stockFilter.value
+  if (pagination.value.pageIndex > 0) q.page = String(pagination.value.pageIndex + 1)
+  const s = sorting.value[0]
+  if (s) {
+    q.sort = s.id
+    if (s.desc) q.dir = 'desc'
+  }
+  // replace (not push) so filtering doesn't flood the back-button history.
+  router.replace({ query: q })
+}
+
+async function loadPage() {
+  loading.value = true
+  try {
+    const s = sorting.value[0]
+    const res = await fetchProductPage({
+      page: pagination.value.pageIndex,
+      pageSize: pagination.value.pageSize,
+      name: nameFilter.value,
+      category: categoryFilter.value,
+      stock: stockFilter.value,
+      sortId: s?.id as ProductSortId | undefined,
+      sortDesc: s?.desc,
+    })
+    data.value = res.rows
+    total.value = res.total
+    rowSelection.value = {} // selection is per-page; clear on every fetch
+  } catch {
+    toast.error('Gagal memuat produk')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadCategories() {
+  try {
+    categories.value = await fetchCategories()
+  } catch {
+    // Non-fatal: filter dropdown simply stays empty.
+  }
+}
+
+// Exposed so the parent page can refresh after create/update/delete.
+async function reload() {
+  await Promise.all([loadPage(), loadCategories()])
+}
+defineExpose({ reload })
+
+// Reset all filters to defaults. The category/stock watcher resets to page 1 and
+// refetches; nameFilter's debounced watcher fires too, so this settles on one page.
+function resetFilters() {
+  nameFilter.value = ''
+  categoryFilter.value = '__all__'
+  stockFilter.value = 'all'
+}
+
+// Filter changes reset to the first page then refetch. Name is debounced to avoid
+// a query per keystroke. Setting pageIndex directly (not via the table) won't fire
+// onPaginationChange, so there's no double fetch.
+const onNameInput = useDebounceFn(() => {
+  pagination.value.pageIndex = 0
+  loadPage()
+}, 300)
+watch(nameFilter, onNameInput)
+watch([categoryFilter, stockFilter], () => {
+  pagination.value.pageIndex = 0
+  loadPage()
 })
 
-// Reset to page 1 when category/stock filters change
-watch([categoryFilter, stockFilter], () => {
-  pagination.value = { ...pagination.value, pageIndex: 0 }
+// Mirror every filter/sort/page change into the URL query string.
+watch(
+  [nameFilter, categoryFilter, stockFilter, () => pagination.value.pageIndex, sorting],
+  syncUrl,
+  { deep: true },
+)
+
+onMounted(() => {
+  loadPage()
+  loadCategories()
 })
 
 // --- Column definitions ---
@@ -94,7 +170,6 @@ const columns = [
   col.accessor('name', {
     header: 'Nama',
     enableSorting: true,
-    filterFn: 'includesString',
   }),
   col.accessor('category', {
     header: 'Kategori',
@@ -122,23 +197,31 @@ const columns = [
 ]
 
 const table = useVueTable({
-  get data() { return filteredProducts.value },
+  get data() { return data.value },
   columns,
   state: {
     get sorting() { return sorting.value },
-    get columnFilters() { return columnFilters.value },
     get rowSelection() { return rowSelection.value },
     get pagination() { return pagination.value },
   },
+  manualPagination: true,
+  manualSorting: true,
+  manualFiltering: true,
+  get rowCount() { return total.value },
   enableRowSelection: true,
-  onSortingChange: (u) => valueUpdater(u, sorting),
-  onColumnFiltersChange: (u) => valueUpdater(u, columnFilters),
+  getRowId: (row) => row.id,
+  // Sort change resets to page 1 then refetches; page change just refetches.
+  onSortingChange: (u) => {
+    valueUpdater(u, sorting)
+    pagination.value.pageIndex = 0
+    loadPage()
+  },
   onRowSelectionChange: (u) => valueUpdater(u, rowSelection),
-  onPaginationChange: (u) => valueUpdater(u, pagination),
+  onPaginationChange: (u) => {
+    valueUpdater(u, pagination)
+    loadPage()
+  },
   getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
 })
 
 // --- Bulk selection helpers ---
@@ -158,7 +241,7 @@ async function confirmBulkDelete() {
     toast.success(`${selectedCount.value} produk berhasil dihapus`)
     rowSelection.value = {}
     showBulkDeleteDialog.value = false
-    emit('refresh')
+    await reload()
   } catch {
     toast.error('Gagal menghapus produk')
   } finally {
@@ -194,22 +277,17 @@ function stockBadgeVariant(stock: number) {
 </script>
 
 <template>
-  <!-- Skeleton loader -->
-  <div v-if="loading" class="flex flex-col gap-3">
-    <Skeleton v-for="i in 6" :key="i" class="h-12 w-full" />
-  </div>
-
-  <template v-else>
-    <!-- Filter bar -->
+  <div>
+    <!-- Filter bar (stays visible while data loads) -->
     <div class="flex flex-wrap gap-3 mb-4">
       <Input
         v-model="nameFilter"
         placeholder="Cari nama produk..."
-        class="h-11 text-base max-w-xs"
+        class="h-11 text-base w-full sm:max-w-xs"
       />
 
       <Select v-model="categoryFilter">
-        <SelectTrigger class="h-11 text-base w-48">
+        <SelectTrigger class="h-11 text-base w-full sm:w-48">
           <SelectValue placeholder="Semua Kategori" />
         </SelectTrigger>
         <SelectContent>
@@ -227,9 +305,30 @@ function stockBadgeVariant(stock: number) {
 
       <ToggleGroup v-model="stockFilter" type="single" variant="outline">
         <ToggleGroupItem value="all" class="h-11 text-base px-4">Semua</ToggleGroupItem>
-        <ToggleGroupItem value="in" class="h-11 text-base px-4">Ada Stok</ToggleGroupItem>
+        <ToggleGroupItem value="in" class="h-11 text-base px-4">Tersedia</ToggleGroupItem>
         <ToggleGroupItem value="out" class="h-11 text-base px-4">Habis</ToggleGroupItem>
       </ToggleGroup>
+
+      <Button
+        variant="outline"
+        class="h-11 text-base gap-2 ml-auto"
+        :disabled="!hasActiveFilters"
+        @click="resetFilters"
+      >
+        <IconFilterOff data-icon="inline-start" />
+        <span class="hidden sm:inline">Reset Filter</span>
+      </Button>
+
+      <Button
+        variant="outline"
+        size="icon-lg"
+        class="h-11 w-11"
+        :disabled="loading"
+        aria-label="Muat ulang"
+        @click="reload"
+      >
+        <IconRefresh :class="loading ? 'animate-spin' : ''" />
+      </Button>
     </div>
 
     <!-- Bulk action toolbar -->
@@ -246,7 +345,7 @@ function stockBadgeVariant(stock: number) {
     </div>
 
     <!-- Table -->
-    <div class="border overflow-x-auto">
+    <div class="rounded-md border overflow-x-auto md:min-h-[40rem]">
       <Table>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
@@ -283,17 +382,24 @@ function stockBadgeVariant(stock: number) {
         </TableHeader>
 
         <TableBody>
-          <template v-if="table.getRowModel().rows.length">
+          <TableRow v-if="loading">
+            <TableCell :colspan="columns.length" class="text-center py-10">
+              <Spinner class="mx-auto size-6" />
+            </TableCell>
+          </TableRow>
+
+          <template v-else-if="table.getRowModel().rows.length">
             <TableRow
               v-for="row in table.getRowModel().rows"
               :key="row.id"
               :data-state="row.getIsSelected() ? 'selected' : undefined"
+              class="h-14"
             >
               <TableCell
                 v-for="cell in row.getVisibleCells()"
                 :key="cell.id"
                 :class="[
-                  'text-base',
+                  'text-base whitespace-nowrap',
                   cell.column.id === 'category' || cell.column.id === 'unit'
                     ? 'hidden sm:table-cell'
                     : '',
@@ -319,7 +425,7 @@ function stockBadgeVariant(stock: number) {
                       @click="emit('edit', row.original)"
                     >
                       <IconPencil data-icon="inline-start" />
-                      Edit
+                      <span class="hidden sm:inline">Edit</span>
                     </Button>
                     <Button
                       variant="destructive"
@@ -328,7 +434,7 @@ function stockBadgeVariant(stock: number) {
                       @click="emit('delete', row.original)"
                     >
                       <IconTrash data-icon="inline-start" />
-                      Hapus
+                      <span class="hidden sm:inline">Hapus</span>
                     </Button>
                   </div>
                 </template>
@@ -343,8 +449,26 @@ function stockBadgeVariant(stock: number) {
           </template>
 
           <TableRow v-else>
-            <TableCell :colspan="columns.length" class="text-center text-base py-10 text-muted-foreground">
-              Tidak ada produk ditemukan
+            <TableCell :colspan="columns.length" class="py-10">
+              <Empty class="border-0">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <IconPackage class="size-6" />
+                  </EmptyMedia>
+                  <EmptyTitle class="text-2xl">
+                    {{ hasActiveFilters ? 'Tidak ada hasil' : 'Belum ada produk' }}
+                  </EmptyTitle>
+                  <EmptyDescription class="text-lg">
+                    {{ hasActiveFilters ? 'Tidak ada produk yang cocok dengan filter' : 'Tambahkan produk pertama Anda' }}
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent v-if="!hasActiveFilters">
+                  <Button class="h-12 text-lg gap-2" @click="emit('add')">
+                    <IconPlus data-icon="inline-start" />
+                    Tambah Produk
+                  </Button>
+                </EmptyContent>
+              </Empty>
             </TableCell>
           </TableRow>
         </TableBody>
@@ -354,7 +478,7 @@ function stockBadgeVariant(stock: number) {
     <!-- Pagination -->
     <div class="flex items-center justify-between mt-3 gap-4 flex-wrap">
       <p class="text-sm text-muted-foreground">
-        {{ table.getFilteredRowModel().rows.length }} dari {{ products.length }} produk
+        {{ total }} produk
       </p>
       <div class="flex items-center gap-2">
         <span class="text-sm text-muted-foreground whitespace-nowrap">
@@ -378,12 +502,15 @@ function stockBadgeVariant(stock: number) {
         </Button>
       </div>
     </div>
-  </template>
+  </div>
 
   <!-- Bulk delete confirmation -->
   <AlertDialog :open="showBulkDeleteDialog" @update:open="(v) => !v && (showBulkDeleteDialog = false)">
     <AlertDialogContent>
       <AlertDialogHeader>
+        <AlertDialogMedia class="bg-destructive/10 text-destructive">
+          <IconTrash />
+        </AlertDialogMedia>
         <AlertDialogTitle class="text-2xl">Hapus {{ selectedCount }} Produk?</AlertDialogTitle>
         <AlertDialogDescription class="text-lg">
           Semua produk yang dipilih akan dihapus secara permanen dan tidak bisa dikembalikan.

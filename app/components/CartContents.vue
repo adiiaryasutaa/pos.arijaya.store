@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PhShoppingCart } from '@phosphor-icons/vue'
-import type { CartItem } from '@/composables/useCart'
+import type { CartItem } from '@/stores/cart'
 
 const props = defineProps<{
   items: CartItem[]
@@ -46,7 +46,7 @@ function setExact() {
 
 <template>
   <!-- Item list -->
-  <ScrollArea class="flex-1 p-4">
+  <ScrollArea class="flex-1 min-h-0 p-4">
     <div v-if="items.length === 0" class="flex flex-col items-center justify-center gap-2 h-32 text-muted-foreground">
       <PhShoppingCart class="size-10" />
       <p class="text-lg">Keranjang kosong</p>

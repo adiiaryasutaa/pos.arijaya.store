@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/sonner'
 
-const { storeName, fontSize, loadSettings } = useSettings()
+const settings = useSettingsStore()
+const { storeName, fontSize } = storeToRefs(settings)
 
-await useAsyncData('settings', loadSettings)
+// Client-only + non-blocking: settings have sane defaults, so don't stall SSR
+// on the remote Supabase round-trip (cold start can take several seconds).
+useLazyAsyncData('settings', () => settings.loadSettings(), { server: false })
 
 useHead({
   titleTemplate: (titleChunk) =>

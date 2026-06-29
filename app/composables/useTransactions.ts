@@ -1,4 +1,4 @@
-import type { CartItem } from './useCart'
+import type { CartItem } from '@/stores/cart'
 import type { Database } from '@/types/database.types'
 
 export interface TransactionItem {
@@ -37,24 +37,68 @@ export interface TransactionSummary {
 // one page, small enough to keep the nested-items payload bounded.
 export const TRANSACTIONS_PAGE_SIZE = 30
 
+// Filters shared by the list and the summary so both always describe the same set.
+// `idFilter` carries the result of a product-name search (transaction ids); an empty
+// array means "search ran but matched nothing" and must yield an empty result.
+export interface TxFilters {
+  from?: string
+  to?: string
+  paymentMethod?: 'cash' | 'transfer'
+  minTotal?: number
+  maxTotal?: number
+  cashierId?: string
+  idFilter?: string[]
+}
+
 export function useTransactions() {
   const supabase = useSupabaseClient<Database>()
+
+  // Resolves a product-name query to the distinct transaction ids whose items match.
+  // Kept separate (rather than an inner join) so the fetched transactions keep their
+  // full item lists. Returns [] when the query matches no items.
+  async function resolveProductIds(q: string): Promise<string[]> {
+    const term = q.trim()
+    if (!term) return []
+    const { data, error } = await supabase
+      .from('transaction_items')
+      .select('transaction_id')
+      .ilike('product_name', `%${term}%`)
+    if (error) throw error
+    return [...new Set((data ?? []).map(r => r.transaction_id))]
+  }
+
+  // Applies the shared filters to a transactions query builder.
+  function applyFilters<T>(query: T, f: TxFilters): T {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q = query as any
+    if (f.from) q = q.gte('created_at', f.from)
+    if (f.to) q = q.lte('created_at', f.to)
+    if (f.paymentMethod) q = q.eq('payment_method', f.paymentMethod)
+    if (f.minTotal != null) q = q.gte('total', f.minTotal)
+    if (f.maxTotal != null) q = q.lte('total', f.maxTotal)
+    if (f.cashierId) q = q.eq('user_id', f.cashierId)
+    if (f.idFilter) q = q.in('id', f.idFilter)
+    return q as T
+  }
 
   // Paginated list with nested items. Fetches one extra row to detect `hasMore`
   // without a separate count query.
   async function fetchTransactions(
-    opts: { from?: string, to?: string, offset?: number, limit?: number } = {},
+    opts: TxFilters & { offset?: number, limit?: number } = {},
   ): Promise<TransactionPage> {
-    const { from, to, offset = 0, limit = TRANSACTIONS_PAGE_SIZE } = opts
+    const { offset = 0, limit = TRANSACTIONS_PAGE_SIZE, ...filters } = opts
+
+    // A product search that matched nothing → empty page, skip the query.
+    if (filters.idFilter && filters.idFilter.length === 0) {
+      return { rows: [], hasMore: false }
+    }
 
     let query = supabase
       .from('transactions')
       .select('*, transaction_items(*)')
       .order('created_at', { ascending: false })
 
-    if (from) query = query.gte('created_at', from)
-    if (to) query = query.lte('created_at', to)
-
+    query = applyFilters(query, filters)
     query = query.range(offset, offset + limit) // +1 sentinel row
 
     const { data, error } = await query
@@ -65,15 +109,18 @@ export function useTransactions() {
     return { rows: hasMore ? rows.slice(0, limit) : rows, hasMore }
   }
 
-  // Accurate count + revenue over the whole filtered range, independent of pagination.
+  // Accurate count + revenue over the whole filtered set, independent of pagination.
   // Selects only the `total` column (no nested items) to keep the payload light.
-  async function fetchSummary(from?: string, to?: string): Promise<TransactionSummary> {
+  async function fetchSummary(filters: TxFilters = {}): Promise<TransactionSummary> {
+    if (filters.idFilter && filters.idFilter.length === 0) {
+      return { count: 0, total: 0 }
+    }
+
     let query = supabase
       .from('transactions')
       .select('total', { count: 'exact' })
 
-    if (from) query = query.gte('created_at', from)
-    if (to) query = query.lte('created_at', to)
+    query = applyFilters(query, filters)
 
     const { data, error, count } = await query
     if (error) throw error
@@ -104,5 +151,5 @@ export function useTransactions() {
     return data as unknown as Transaction
   }
 
-  return { fetchTransactions, fetchSummary, createTransaction }
+  return { fetchTransactions, fetchSummary, resolveProductIds, createTransaction }
 }

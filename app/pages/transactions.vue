@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { PhArrowLeft, PhReceipt } from '@phosphor-icons/vue'
+import { PhArrowLeft, PhReceipt, PhMagnifyingGlass, PhPlus } from '@phosphor-icons/vue'
+import { useDebounceFn } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import type { Transaction } from '@/composables/useTransactions'
+import type { Transaction, TxFilters } from '@/composables/useTransactions'
 import { TRANSACTIONS_PAGE_SIZE } from '@/composables/useTransactions'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Riwayat Transaksi' })
 
-const { fetchTransactions, fetchSummary } = useTransactions()
+const { fetchTransactions, fetchSummary, resolveProductIds } = useTransactions()
+const { fetchUsers } = useUsers()
 const { formatIDR } = useCurrency()
+
+const user = useSupabaseUser()
+const isAdmin = computed(() => (user.value?.app_metadata as { role?: string })?.role === 'admin')
 
 const transactions = ref<Transaction[]>([])
 const summary = ref({ count: 0, total: 0 })
@@ -17,9 +22,23 @@ const loadingMore = ref(false)
 const hasMore = ref(false)
 const offset = ref(0)
 
+// Filters
 const dateFrom = ref('')
 const dateTo = ref('')
 const activePreset = ref<'today' | 'week' | 'month' | 'all' | 'custom'>('month')
+const searchQuery = ref('')
+const paymentMethod = ref<'all' | 'cash' | 'transfer'>('all')
+const minTotal = ref('')
+const maxTotal = ref('')
+const cashierId = ref('all')
+
+// Cashier dropdown + name map (admin only — names are not readable client-side otherwise).
+const cashiers = ref<{ id: string, name: string }[]>([])
+const cashierMap = computed(() => new Map(cashiers.value.map(c => [c.id, c.name])))
+
+// The filter set used for the current list, reused by loadMore so pagination stays
+// consistent (and the product-id search isn't re-resolved on every page).
+const activeFilters = ref<TxFilters>({})
 
 const selectedTransaction = ref<Transaction | null>(null)
 const showInvoice = ref(false)
@@ -37,11 +56,24 @@ function ymd(d: Date) {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-function range() {
-  return {
+function parseAmount(s: string): number | undefined {
+  const digits = s.replace(/[^\d]/g, '')
+  return digits ? Number(digits) : undefined
+}
+
+async function buildFilters(): Promise<TxFilters> {
+  const f: TxFilters = {
     from: dateFrom.value ? `${dateFrom.value}T00:00:00` : undefined,
     to: dateTo.value ? `${dateTo.value}T23:59:59` : undefined,
+    paymentMethod: paymentMethod.value === 'all' ? undefined : paymentMethod.value,
+    minTotal: parseAmount(minTotal.value),
+    maxTotal: parseAmount(maxTotal.value),
+    cashierId: cashierId.value === 'all' ? undefined : cashierId.value,
   }
+  if (searchQuery.value.trim()) {
+    f.idFilter = await resolveProductIds(searchQuery.value)
+  }
+  return f
 }
 
 function applyPreset(key: typeof presets[number]['key']) {
@@ -70,14 +102,22 @@ function applyManualFilter() {
   load()
 }
 
+function onPaymentChange(val: unknown) {
+  if (val === 'all' || val === 'cash' || val === 'transfer') {
+    paymentMethod.value = val
+    load()
+  }
+}
+
 async function load() {
   loading.value = true
   offset.value = 0
   try {
-    const { from, to } = range()
+    const f = await buildFilters()
+    activeFilters.value = f
     const [page, sum] = await Promise.all([
-      fetchTransactions({ from, to, offset: 0 }),
-      fetchSummary(from, to),
+      fetchTransactions({ ...f, offset: 0 }),
+      fetchSummary(f),
     ])
     transactions.value = page.rows
     hasMore.value = page.hasMore
@@ -89,12 +129,15 @@ async function load() {
   }
 }
 
+const debouncedSearch = useDebounceFn(load, 300)
+watch(searchQuery, () => debouncedSearch())
+watch(cashierId, () => load())
+
 async function loadMore() {
   loadingMore.value = true
   try {
-    const { from, to } = range()
     offset.value += TRANSACTIONS_PAGE_SIZE
-    const page = await fetchTransactions({ from, to, offset: offset.value })
+    const page = await fetchTransactions({ ...activeFilters.value, offset: offset.value })
     transactions.value.push(...page.rows)
     hasMore.value = page.hasMore
   } catch {
@@ -104,7 +147,17 @@ async function loadMore() {
   }
 }
 
-onMounted(() => applyPreset('month'))
+onMounted(async () => {
+  applyPreset('month')
+  if (isAdmin.value) {
+    try {
+      const users = await fetchUsers()
+      cashiers.value = users.map(u => ({ id: u.id, name: u.full_name || u.email }))
+    } catch {
+      // Non-fatal: cashier filter simply stays empty if the list can't load.
+    }
+  }
+})
 
 function openInvoice(tx: Transaction) {
   selectedTransaction.value = tx
@@ -121,28 +174,76 @@ function formatDate(dateStr: string) {
   })
 }
 
+function cashierName(tx: Transaction): string {
+  if (!tx.user_id) return 'Tidak diketahui'
+  return cashierMap.value.get(tx.user_id) ?? 'Tidak diketahui'
+}
+
 const paymentLabel = (method: string) => method === 'cash' ? 'Tunai' : 'Transfer'
 </script>
 
 <template>
   <div class="min-h-screen bg-background">
-    <header class="border-b px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3">
-      <NuxtLink to="/">
+    <header class="border-b">
+      <div class="container mx-auto px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3">
+        <h1 class="text-2xl lg:text-3xl font-bold">Riwayat Transaksi</h1>
+      </div>
+    </header>
+
+    <main class="p-4 lg:p-6 container mx-auto flex flex-col gap-4 lg:gap-6">
+      <NuxtLink to="/" class="w-fit">
         <Button variant="ghost" class="h-12 text-lg gap-2">
           <PhArrowLeft data-icon="inline-start" />
           Kembali
         </Button>
       </NuxtLink>
-      <h1 class="text-2xl lg:text-3xl font-bold">Riwayat Transaksi</h1>
-    </header>
-
-    <main class="p-4 lg:p-6 max-w-4xl mx-auto flex flex-col gap-4 lg:gap-6">
       <!-- Filter -->
       <Card>
         <CardHeader>
-          <CardTitle class="text-xl">Periode</CardTitle>
+          <CardTitle class="text-xl">Filter</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
+          <!-- Product search -->
+          <div class="relative">
+            <PhMagnifyingGlass
+              class="absolute left-3 top-1/2 -translate-y-1/2 size-6 text-muted-foreground pointer-events-none"
+            />
+            <Input
+              v-model="searchQuery"
+              class="h-12 text-lg pl-12"
+              placeholder="Cari produk..."
+            />
+          </div>
+
+          <!-- Payment method -->
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            :model-value="paymentMethod"
+            class="w-full"
+            @update:model-value="onPaymentChange"
+          >
+            <ToggleGroupItem value="all" class="flex-1 h-12 text-lg">Semua</ToggleGroupItem>
+            <ToggleGroupItem value="cash" class="flex-1 h-12 text-lg">Tunai</ToggleGroupItem>
+            <ToggleGroupItem value="transfer" class="flex-1 h-12 text-lg">Transfer</ToggleGroupItem>
+          </ToggleGroup>
+
+          <!-- Cashier (admin only) -->
+          <div v-if="isAdmin" class="flex flex-col gap-2">
+            <label class="text-lg font-medium">Kasir</label>
+            <Select v-model="cashierId">
+              <SelectTrigger class="h-12 text-lg">
+                <SelectValue placeholder="Semua kasir" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" class="text-lg">Semua kasir</SelectItem>
+                <SelectItem v-for="c in cashiers" :key="c.id" :value="c.id" class="text-lg">
+                  {{ c.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <!-- Quick presets -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Button
@@ -156,20 +257,42 @@ const paymentLabel = (method: string) => method === 'cash' ? 'Tunai' : 'Transfer
             </Button>
           </div>
 
-          <!-- Manual range -->
-          <div class="flex flex-col sm:flex-row gap-4 items-end">
-            <div class="flex-1 flex flex-col gap-2">
+          <!-- Manual date range + amount range -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
               <label class="text-lg font-medium">Dari Tanggal</label>
               <Input v-model="dateFrom" type="date" class="h-12 text-lg" />
             </div>
-            <div class="flex-1 flex flex-col gap-2">
+            <div class="flex flex-col gap-2">
               <label class="text-lg font-medium">Sampai Tanggal</label>
               <Input v-model="dateTo" type="date" class="h-12 text-lg" />
             </div>
-            <Button variant="outline" class="h-12 text-lg sm:w-auto w-full" @click="applyManualFilter">
-              Terapkan
-            </Button>
+            <div class="flex flex-col gap-2">
+              <label class="text-lg font-medium">Nominal Min (Rp)</label>
+              <Input
+                v-model="minTotal"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                class="h-12 text-lg"
+                placeholder="0"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-lg font-medium">Nominal Maks (Rp)</label>
+              <Input
+                v-model="maxTotal"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                class="h-12 text-lg"
+                placeholder="Tanpa batas"
+              />
+            </div>
           </div>
+          <Button variant="outline" class="h-12 text-lg w-full" @click="applyManualFilter">
+            Terapkan
+          </Button>
         </CardContent>
       </Card>
 
@@ -196,43 +319,76 @@ const paymentLabel = (method: string) => method === 'cash' ? 'Tunai' : 'Transfer
 
       <Empty v-else-if="transactions.length === 0">
         <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <PhReceipt class="size-6" />
+          </EmptyMedia>
           <EmptyTitle class="text-2xl">Belum ada transaksi</EmptyTitle>
           <EmptyDescription class="text-lg">
-            {{ activePreset === 'all' ? 'Belum ada transaksi tercatat' : 'Tidak ada transaksi pada periode ini' }}
+            {{ activePreset === 'all' && !searchQuery ? 'Belum ada transaksi tercatat' : 'Tidak ada transaksi yang cocok dengan filter' }}
           </EmptyDescription>
         </EmptyHeader>
+        <EmptyContent v-if="activePreset === 'all' && !searchQuery">
+          <NuxtLink to="/cashier">
+            <Button class="h-12 text-lg gap-2">
+              <PhPlus data-icon="inline-start" />
+              Mulai Transaksi
+            </Button>
+          </NuxtLink>
+        </EmptyContent>
       </Empty>
 
       <template v-else>
-        <div class="flex flex-col gap-3">
-          <Card
-            v-for="tx in transactions"
-            :key="tx.id"
-            class="cursor-pointer hover:bg-accent transition-colors"
-            @click="openInvoice(tx)"
-          >
-            <CardContent class="pt-4 pb-4">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div class="flex flex-col gap-1">
-                  <p class="text-lg font-semibold">{{ formatDate(tx.created_at) }}</p>
-                  <p class="text-base text-foreground/70">
-                    {{ tx.transaction_items.length }} produk ·
-                    {{ tx.transaction_items.reduce((s, i) => s + i.quantity, 0) }} item
-                  </p>
-                </div>
-                <div class="flex items-center gap-3 sm:flex-col sm:items-end">
-                  <p class="text-xl font-bold text-primary">{{ formatIDR(tx.total) }}</p>
-                  <Badge variant="outline" class="text-base px-3 py-1">
-                    {{ paymentLabel(tx.payment_method) }}
-                  </Badge>
-                </div>
-                <Button variant="outline" class="h-12 text-lg gap-2 w-full sm:w-auto shrink-0">
-                  <PhReceipt data-icon="inline-start" />
-                  Struk
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div class="rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="text-base">Tanggal</TableHead>
+                <TableHead class="text-base">Item</TableHead>
+                <TableHead v-if="isAdmin" class="text-base hidden md:table-cell">Kasir</TableHead>
+                <TableHead class="text-base">Bayar</TableHead>
+                <TableHead class="text-base text-right">Total</TableHead>
+                <TableHead class="text-base text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="tx in transactions"
+                :key="tx.id"
+                class="cursor-pointer"
+                @click="openInvoice(tx)"
+              >
+                <TableCell class="text-lg font-medium whitespace-nowrap">
+                  {{ formatDate(tx.created_at) }}
+                </TableCell>
+                <TableCell class="text-base text-foreground/70 whitespace-nowrap">
+                  {{ tx.transaction_items.length }} produk ·
+                  {{ tx.transaction_items.reduce((s, i) => s + i.quantity, 0) }} item
+                </TableCell>
+                <TableCell v-if="isAdmin" class="text-base text-foreground/70 hidden md:table-cell">
+                  {{ cashierName(tx) }}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" class="text-sm">{{ paymentLabel(tx.payment_method) }}</Badge>
+                </TableCell>
+                <TableCell class="text-lg font-bold text-primary text-right whitespace-nowrap">
+                  {{ formatIDR(tx.total) }}
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="h-11 text-base gap-1.5"
+                      @click.stop="openInvoice(tx)"
+                    >
+                      <PhReceipt data-icon="inline-start" />
+                      <span class="hidden sm:inline">Struk</span>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
 
         <Button
