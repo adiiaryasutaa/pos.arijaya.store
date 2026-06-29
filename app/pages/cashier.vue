@@ -4,6 +4,7 @@ import {
   PhArrowsClockwise,
   PhMagnifyingGlass,
   PhShoppingCart,
+  PhTrash,
 } from '@phosphor-icons/vue'
 import { toast } from 'vue-sonner'
 import type { Transaction } from '@/composables/useTransactions'
@@ -24,6 +25,7 @@ const { fetchProducts } = useProducts()
 const { createTransaction } = useTransactions()
 const { formatIDR } = useCurrency()
 const cart = useCartStore()
+const feedback = useFeedback()
 const { items, total, itemCount } = storeToRefs(cart)
 const { addItem, removeItem, updateQuantity, clearCart, syncWithProducts } = cart
 const supabase = useSupabaseClient<Database>()
@@ -39,6 +41,13 @@ const invoiceTransaction = ref<Transaction | null>(null)
 const showInvoice = ref(false)
 const cartOpen = ref(false)
 const refreshing = ref(false)
+const showClearConfirm = ref(false)
+
+function handleClearCart() {
+  clearCart()
+  showClearConfirm.value = false
+  toast.success('Keranjang dikosongkan')
+}
 
 const categories = computed(() => {
   const set = new Set<string>()
@@ -99,6 +108,7 @@ onUnmounted(() => {
 })
 
 function addToCart(p: Product) {
+  if (processing.value) return // freeze the cart mid-checkout
   const result = addItem(p)
   if (result === 'out_of_stock') toast.error(`${p.name} stok habis`)
   else if (result === 'max_reached') toast.warning(`Stok ${p.name} tidak cukup`)
@@ -131,9 +141,12 @@ async function processTransaction() {
       if (p) p.stock -= sold.quantity
     }
     toast.success('Transaksi berhasil!')
+    feedback.success()
   } catch (err: unknown) {
+    console.error('[cashier] processTransaction:', err)
     const msg = err instanceof Error ? err.message : 'Gagal memproses transaksi'
     toast.error(msg)
+    feedback.error()
   } finally {
     processing.value = false
   }
@@ -209,7 +222,7 @@ async function processTransaction() {
               <button
                 v-for="p in filteredProducts"
                 :key="p.id"
-                :disabled="p.stock === 0"
+                :disabled="p.stock === 0 || processing"
                 class="text-left rounded-lg border bg-card p-3 lg:p-4 transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="addToCart(p)"
               >
@@ -245,6 +258,7 @@ async function processTransaction() {
           @update="onUpdateQuantity"
           @remove="removeItem"
           @process="processTransaction"
+          @clear="showClearConfirm = true"
         />
       </div>
     </div>
@@ -291,9 +305,29 @@ async function processTransaction() {
       </Sheet>
     </div>
 
+    <!-- Clear cart confirmation -->
+    <AlertDialog :open="showClearConfirm" @update:open="(v) => !v && (showClearConfirm = false)">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogMedia class="bg-destructive/10 text-destructive">
+            <PhTrash />
+          </AlertDialogMedia>
+          <AlertDialogTitle class="text-2xl">Kosongkan Keranjang?</AlertDialogTitle>
+          <AlertDialogDescription class="text-lg">
+            Semua item di keranjang akan dihapus.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel class="h-12 text-lg">Batal</AlertDialogCancel>
+          <AlertDialogAction class="h-12 text-lg" @click="handleClearCart">Ya, Kosongkan</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <InvoiceModal
       v-model:open="showInvoice"
       :transaction="invoiceTransaction"
+      success
     />
   </div>
 </template>

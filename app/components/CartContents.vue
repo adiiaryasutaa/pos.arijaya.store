@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PhShoppingCart } from '@phosphor-icons/vue'
+import { PhShoppingCart, PhTrash } from '@phosphor-icons/vue'
 import type { CartItem } from '@/stores/cart'
 
 const props = defineProps<{
@@ -12,6 +12,7 @@ const emit = defineEmits<{
   update: [productId: string, quantity: number]
   remove: [productId: string]
   process: []
+  clear: []
 }>()
 
 const paymentMethod = defineModel<'cash' | 'transfer'>('paymentMethod', { required: true })
@@ -52,6 +53,15 @@ function setExact() {
       <p class="text-lg">Keranjang kosong</p>
     </div>
     <div v-else class="flex flex-col gap-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="self-end h-9 text-base text-destructive gap-1.5"
+        @click="emit('clear')"
+      >
+        <PhTrash data-icon="inline-start" />
+        Kosongkan
+      </Button>
       <CartItemRow
         v-for="item in items"
         :key="item.product.id"

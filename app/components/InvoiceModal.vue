@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { PhShareNetwork, PhX } from '@phosphor-icons/vue'
+import { PhShareNetwork, PhX, PhCheckCircle } from '@phosphor-icons/vue'
 import type { Transaction } from '@/composables/useTransactions'
 
 const props = defineProps<{
   open: boolean
   transaction: Transaction | null
+  // When opened right after a sale (vs viewing history), show the success banner.
+  success?: boolean
 }>()
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -72,6 +74,14 @@ async function share() {
       </DialogHeader>
 
       <div v-if="transaction" class="flex flex-col gap-4">
+        <!-- Success banner (only right after completing a sale) -->
+        <div v-if="success" class="flex flex-col items-center gap-2">
+          <div class="flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <PhCheckCircle class="size-12" weight="fill" />
+          </div>
+          <p class="text-2xl font-bold text-emerald-600">Transaksi Berhasil</p>
+        </div>
+
         <!-- Store Header -->
         <div class="text-center border-b pb-4">
           <p class="text-2xl font-bold">{{ storeName }}</p>
